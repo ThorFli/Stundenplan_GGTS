@@ -12,11 +12,9 @@ __pycache__/
 # VS Code
 .vscode/
 
-# Excel-Ausgabedatei (wird bei jedem Lauf neu erzeugt)
-stundenplan_cpsat_ergebnis.xlsx
-
-# Eingabedatei mit echten Schuldaten (nicht ins öffentliche Repo)
-Stundenplan_Vorlage_Wuensche_Lehrer.xlsx
+# Alle Excel-Dateien (Eingabe, Ausgabe, Schuldaten)
+*.xlsx
+*.xls
 
 # Diagnose-Hilfsskript
 diag.py
