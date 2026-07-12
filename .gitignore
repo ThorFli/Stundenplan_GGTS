@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtuelle Umgebung
+.venv/
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Excel-Ausgabedatei (wird bei jedem Lauf neu erzeugt)
+stundenplan_cpsat_ergebnis.xlsx
+
+# Eingabedatei mit echten Schuldaten (nicht ins öffentliche Repo)
+Stundenplan_Vorlage_Wuensche_Lehrer.xlsx
+
+# Diagnose-Hilfsskript
+diag.py
