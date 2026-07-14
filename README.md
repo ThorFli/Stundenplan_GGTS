@@ -332,6 +332,8 @@ Optimiert unter der Bedingung `primary_expr ≤ Phase1-Ergebnis`:
 
 | Datum | Änderung |
 |---|---|
+| 2026-07-14 | Religionsgruppen: Neue virtuelle Klassen (z.B. RK2, RE234) mit `Mitglieder:` in Kommentar-Spalte von `03_Klassen` |
+| 2026-07-14 | Förderunterricht: `fixed_teacher = Klassenlehrer` wird automatisch ignoriert (Co-Lehrer-Konflikt) |
 | 2026-07-14 | GF/UF-Schwimmen (Aufsichtsdienst) in Harte_Wuensche wird als Hinweis protokolliert, nicht als Fehler |
 | 2026-07-14 | `slot_valid`: Schwimmen jetzt auch in GF1/GF2 erlaubt (Nachmittagsschwimmen) |
 | 2026-07-14 | Neue harte Regel: Doppelstunde bei Mehrfachbelegung – kein „A-B-A"-Muster erlaubt (mind. 300 s Rechenzeit empfohlen) |

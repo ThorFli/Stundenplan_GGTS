@@ -346,6 +346,11 @@ def active_rules(wb) -> set[str]:
     return rules
 
 
+def _is_virtual_class(klasse: str) -> bool:
+    """True fuer virtuelle Religionsgruppen (z.B. RK2, RE234, RA1) – keine regulaere Klasse."""
+    return not re.match(r'^[1-4]\.\d$', klasse)
+
+
 def load_data(path: Path):
     wb = load_workbook(path, data_only=True)
     rules = active_rules(wb)
@@ -441,7 +446,18 @@ def load_data(path: Path):
                 if cls:
                     class_teachers.setdefault(cls[0], k)
 
-    return slots, classes, needs, teachers, class_teachers, rules
+    # Religionsgruppen: Kommentarfeld mit "Mitglieder: 2.1,2.2,..." lesen
+    group_classes: dict[str, list[str]] = {}
+    for row in read_table(wb["03_Klassen"]):
+        k = norm(row.get("Klasse"))
+        if not k or not _is_virtual_class(k):
+            continue
+        comment = norm(row.get("Kommentar", ""))
+        members = re.findall(r'\b[1-4]\.\d\b', comment)
+        if members:
+            group_classes[k] = members
+
+    return slots, classes, needs, teachers, class_teachers, rules, group_classes
 
 
 def slot_valid(slot: Slot, klasse: str, fach: str, rules: set[str]) -> bool:
@@ -487,9 +503,17 @@ def create_tasks(needs: list[Need], classes: list[str]) -> list[LessonTask]:
                 fixed_count[("1.4", "Deutsch als Zweitsprache")] += 1
                 i += 1
 
-    # Current Excel rule: Tuesday 4+5 Religion for all, Sport for one first class placeholder = 1.1.
+    # Current Excel rule: Tuesday 4+5 Religion for all non-DAZ classes; Sport fixed for 1.1.
+    # Virtual Religion groups (e.g. RK2, RE234) are included here too.
     for klasse in classes:
         if klasse == "1.4":
+            continue
+        if _is_virtual_class(klasse):
+            # Virtual Religion group: fixed to Tuesday 4+5 (Religion only)
+            for block in ["4", "5"]:
+                tasks.append(LessonTask(i, klasse, "Religion", "", [("Dienstag", block)], note="fix Religionsgruppe Di 4+5"))
+                fixed_count[(klasse, "Religion")] += 1
+                i += 1
             continue
         fach = "Sport" if klasse == "1.1" else "Religion"
         res = "Sporthalle" if fach == "Sport" else ""
@@ -511,6 +535,8 @@ def compute_core_overload_by_class(tasks: list[LessonTask], classes: list[str]) 
     for t in tasks:
         if t.fach in {"Gebundene Freizeit", "Ungebundene Freizeit", "Leseband"}:
             continue
+        if _is_virtual_class(t.klasse):
+            continue  # Religionsgruppen nicht in Core-Überhangberechnung
         core_count[t.klasse] += 1
 
     overload = {}
@@ -569,7 +595,7 @@ def pref_penalty(t: Teacher, klasse: str, fach: str, slot: Slot) -> int:
 
 
 def solve_cp_sat(input_path: Path, output_path: Path, time_limit: int, workers: int):
-    slots, classes, needs, teachers, class_teachers, rules = load_data(input_path)
+    slots, classes, needs, teachers, class_teachers, rules, group_classes = load_data(input_path)
     tasks = create_tasks(needs, classes)
     overload_by_class = compute_core_overload_by_class(tasks, classes)
     overflow_task_ids = select_overflow_task_ids(tasks, overload_by_class)
@@ -617,8 +643,13 @@ def solve_cp_sat(input_path: Path, output_path: Path, time_limit: int, workers: 
         possible_slots = [s for s in slots if (not task.fixed_slots or (s.day, s.block) in task.fixed_slots) and slot_valid(s, task.klasse, task.fach, rules)]
         for slot in possible_slots:
             teacher_keys = list(usable_teachers)
-            if task.fixed_teacher:
-                teacher_keys = [task.fixed_teacher] if task.fixed_teacher in usable_teachers else []
+            # Foerderunterricht: fixed_teacher darf nicht der Klassenlehrer sein (dieser ist Co-Lehrer).
+            # Falls doch eingetragen, wird die Festlegung ignoriert.
+            effective_fixed = task.fixed_teacher
+            if task.fach == "Förderunterricht" and effective_fixed == class_teachers.get(task.klasse, ""):
+                effective_fixed = ""
+            if effective_fixed:
+                teacher_keys = [effective_fixed] if effective_fixed in usable_teachers else []
             for k in teacher_keys:
                 t = usable_teachers[k]
                 if not teacher_available(t, slot):
@@ -756,6 +787,24 @@ def solve_cp_sat(input_path: Path, output_path: Path, time_limit: int, workers: 
                 hard_wish_violations.append((miss, f"Harte_Wuensche verletzt {k}: {subject} in Klasse {klasse}"))
 
     # Klassen-Slot-Kollisionen: immer max. 1 Eintrag je Klasse/Tag/Block.
+    # Religionsgruppen: zuerst Occupancy-Variablen fuer Mitgliedsklassen aufbauen,
+    # damit deren Slots waehrend Religionsunterricht blockiert sind.
+    if group_classes:
+        rel_group_vars: dict[tuple, list] = defaultdict(list)
+        for virtual_class, members in group_classes.items():
+            for task in tasks:
+                if task.klasse != virtual_class:
+                    continue
+                for v, slot, _k, _p in candidates[task.id]:
+                    if slot is None:
+                        continue
+                    for member_class in members:
+                        rel_group_vars[(member_class, slot.day, slot.block)].append(v)
+        for (mc, day, block), gvars in rel_group_vars.items():
+            occ = model.NewBoolVar(f"rel_occ_{mc}_{day}_{block}".replace(" ", "_"))
+            model.AddMaxEquality(occ, gvars)
+            class_slot_vars[(mc, day, block)].append(occ)
+
     for vs in class_slot_vars.values():
         model.AddAtMostOne(vs)
 
@@ -766,9 +815,10 @@ def solve_cp_sat(input_path: Path, output_path: Path, time_limit: int, workers: 
         if sport_vars and foerder_vars:
             model.Add(sum(sport_vars) + sum(foerder_vars) <= 1)
 
-    # Keine Freistunden (weich, aber stark): in Block 1-5 moeglichst immer belegt,
-    # ohne kuenstliche Faecher einzufuehren.
+    # Keine Freistunden: nur fuer regulaere (nicht-virtuelle) Klassen.
     for klasse in classes:
+        if _is_virtual_class(klasse):
+            continue
         for day in DAYS:
             for block in CORE_BLOCKS:
                 slot_vars = [v for v, _t, _k in class_slot_entries.get((klasse, day, block), [])]
