@@ -723,9 +723,14 @@ def solve_cp_sat(input_path: Path, output_path: Path, time_limit: int, workers: 
                         req_vars.append(v)
             if not req_vars:
                 # Fallback: Wunsch erkannt, aber kein passender Kandidat vorhanden.
-                hard_wish_fallback_notes.append(
-                    f"Harte_Wuensche Fallback {k}: {day} {block} {subject} {klasse} nicht direkt modellierbar."
+                # GF/UF-Bloecke (Schwimm-Aufsicht etc.) sind kein regulaerer Unterricht -> nur Hinweis.
+                msg = (
+                    f"Hinweis {k}: {day} {block} {subject} {klasse} ist kein planbarer Unterrichtsslot "
+                    f"(z.B. Schwimm-Aufsicht im GF-Block)."
+                    if block in {"GF1", "GF2", "UF1", "UF2"}
+                    else f"Harte_Wuensche Fallback {k}: {day} {block} {subject} {klasse} nicht direkt modellierbar."
                 )
+                hard_wish_fallback_notes.append(msg)
             else:
                 # Hart: Lehrer MUSS diesen Slot fuer dieses Fach belegen (Harte_Wuensche).
                 model.Add(sum(req_vars) >= 1)

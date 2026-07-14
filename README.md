@@ -313,7 +313,7 @@ Optimiert unter der Bedingung `primary_expr ≤ Phase1-Ergebnis`:
 | `Gebundene Freizeit` (GF1, GF2) | Nur in GF-Slots; optional UNASSIGNED; **kein** Fach-Lehrer-Zwang; wird frei verteilt |
 | `Ungebundene Freizeit` (UF1, UF2) | Nur in UF-Slots; optional UNASSIGNED; **kein** Fach-Lehrer-Zwang; wird frei verteilt |
 | `Sport` | Klassen 2–4: Doppelstunden-Pflicht; Sporthallen-Exklusivnutzung; nicht parallel zu Förderunterricht in derselben Klasse |
-| `Schwimmen` | Nutzung der Sporthallen-Slots; Halbjahreslogik |
+| `Schwimmen` | Nur Kernblöcke 1–5 (regulärer Unterricht); GF1/GF2-Schwimmen gilt als Aufsichtsdienst und wird als Hinweis protokolliert, nicht als planbare Unterrichtsstunde |
 | `Religion` | Dienstag Block 4+5 (außer Klasse 1.4) |
 | `Leseband` | Nur in Leseband-Slot |
 
@@ -332,6 +332,8 @@ Optimiert unter der Bedingung `primary_expr ≤ Phase1-Ergebnis`:
 
 | Datum | Änderung |
 |---|---|
+| 2026-07-14 | GF/UF-Schwimmen (Aufsichtsdienst) in Harte_Wuensche wird als Hinweis protokolliert, nicht als Fehler |
+| 2026-07-14 | `slot_valid`: Schwimmen jetzt auch in GF1/GF2 erlaubt (Nachmittagsschwimmen) |
 | 2026-07-14 | Neue harte Regel: Doppelstunde bei Mehrfachbelegung – kein „A-B-A"-Muster erlaubt (mind. 300 s Rechenzeit empfohlen) |
 | 2026-07-12 | Erstversion README |
 | 2026-07-12 | `Fach_Lehrer`-Constraint: UF1/UF2/GF1/GF2 von Einzel-Lehrer-Zwang befreit |
