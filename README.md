@@ -191,6 +191,7 @@ Jede Regel wird mit `Aktiv = Ja` aktiviert. Folgende Regeln sind implementiert:
 | `Deutsch_Mathe` | Hart | Deutsch und Mathematik dürfen nicht in Block 5 stattfinden |
 | `Fach_Lehrer` | Hart | Pro Klasse und Fach wird genau eine Lehrkraft für die ganze Woche zugewiesen (Ausnahmen: Förderunterricht, DAZ, Gebundene/Ungebundene Freizeit) |
 | `Faecher_verteilt` | Weich | Gleiches Fach soll möglichst nicht mehrfach am selben Tag stattfinden |
+| _(immer aktiv)_ `Doppelstunden_aufeinanderfolgend` | **Hart** | Kommt ein Fach an einem Tag zweimal vor, müssen die beiden Stunden direkt aufeinanderfolgen – Muster wie „Deutsch – Musik – Deutsch" sind verboten. Gilt für alle Kernfächer in Blöcken 1–5 außer Sport, Förderunterricht, DAZ, GF, UF und Leseband. Benötigt mindestens 300 s Rechenzeit. |
 | `Gemeinsame_UF1_UF2_pro_Klassenstufe` | Hart | UF-Slots gelten klassenstufen-übergreifend |
 | `Hauptfaecher_vormittags` | Weich | Deutsch, Mathematik u. a. Hauptfächer bevorzugt in Blöcken 1–4 |
 | `Keine_Doppelbuchung_Klasse` | Hart | Eine Klasse hat pro Slot maximal eine Unterrichtseinheit |
@@ -331,6 +332,7 @@ Optimiert unter der Bedingung `primary_expr ≤ Phase1-Ergebnis`:
 
 | Datum | Änderung |
 |---|---|
+| 2026-07-14 | Neue harte Regel: Doppelstunde bei Mehrfachbelegung – kein „A-B-A"-Muster erlaubt (mind. 300 s Rechenzeit empfohlen) |
 | 2026-07-12 | Erstversion README |
 | 2026-07-12 | `Fach_Lehrer`-Constraint: UF1/UF2/GF1/GF2 von Einzel-Lehrer-Zwang befreit |
 | 2026-07-12 | `Fach_Lehrer`-Constraint: DAZ von Einzel-Lehrer-Zwang befreit |

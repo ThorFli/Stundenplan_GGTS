@@ -841,6 +841,44 @@ def solve_cp_sat(input_path: Path, output_path: Path, time_limit: int, workers: 
             sport_required = sum(1 for t in tasks if t.klasse == klasse and t.fach == "Sport")
             model.Add(sum(sport_week) == sport_required)
 
+    # Harte Regel: Wenn ein Fach an einem Tag mehrfach vorkommt, muessen die Stunden
+    # aufeinanderfolgende Bloecke belegen (Doppelstunde). "Deutsch - Musik - Deutsch" ist verboten.
+    # Gilt fuer alle Kernfaecher in Bloecken 1-5; nicht fuer Sport (eigene Doppelstunden-Regel),
+    # DAZ (feste Slots), Foerderunterricht und Freizeit.
+    _no_consecutive_check = {
+        "Sport", "Förderunterricht", "Deutsch als Zweitsprache",
+        "Gebundene Freizeit", "Ungebundene Freizeit", "Leseband",
+    }
+    for klasse in classes:
+        faecher_klasse = {t.fach for t in tasks if t.klasse == klasse and t.fach not in _no_consecutive_check}
+        for fach in faecher_klasse:
+            for day in DAYS:
+                # Bool-Variable pro Block: ist dieses Fach hier aktiv?
+                block_active: dict[str, object] = {}
+                for block in CORE_BLOCKS:
+                    slot_vars_here = [
+                        v for v, t, _k in class_slot_entries.get((klasse, day, block), [])
+                        if t.fach == fach
+                    ]
+                    if slot_vars_here:
+                        b = model.NewBoolVar(
+                            f"consec_{klasse}_{fach}_{day}_{block}".replace(" ", "_")
+                        )
+                        model.AddMaxEquality(b, slot_vars_here)
+                        block_active[block] = b
+
+                if len(block_active) < 2:
+                    continue  # hoechstens einmal an diesem Tag moeglich → kein Constraint noetig
+
+                # Nicht-aufeinanderfolgende Blockpaare duerfen nicht beide belegt sein
+                block_list = [b for b in CORE_BLOCKS if b in block_active]
+                for ii, bi in enumerate(block_list):
+                    for jj, bj in enumerate(block_list):
+                        if jj <= ii + 1:
+                            continue  # gleicher oder direkt folgender Block → erlaubt
+                        # bi und bj sind nicht benachbart → duerfen nicht beide True sein
+                        model.Add(block_active[bi] + block_active[bj] <= 1)
+
     # New rule: distribute subjects over weekdays as much as possible.
     if "Faecher_verteilt" in rules:
         for klasse in classes:
